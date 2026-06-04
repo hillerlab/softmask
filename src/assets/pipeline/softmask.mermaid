@@ -1,0 +1,103 @@
+flowchart TD
+  START["src/main.nf workflow SOFTMASK"] --> PARAMS["Inputs: genome, assembly_prefix, repeat_library, chunks, output_format"]
+  PARAMS --> MASK_GENOME["MASK_GENOME = subworkflow SOFTMASK"]
+
+  %% -------------------------
+  %% Input genome normalization
+  %% -------------------------
+  MASK_GENOME --> GENOME_FILE["file(params.genome, checkIfExists: true)"]
+  GENOME_FILE --> INPUT_TYPE{"Input genome suffix?"}
+
+  INPUT_TYPE -- ".2bit" --> TWOBIT_TO_FA["TWOBIT_TO_FA: twoBitToFa input.2bit → *.fasta"]
+  INPUT_TYPE -- ".gz" --> GUNZIP_FASTA["GUNZIP_FASTA: gunzip -c input.gz → FASTA"]
+  INPUT_TYPE -- "other FASTA" --> ORIGINAL_FASTA["Use original genome file as FASTA"]
+
+  TWOBIT_TO_FA --> CH_FASTA["ch_fasta"]
+  GUNZIP_FASTA --> CH_FASTA
+  ORIGINAL_FASTA --> CH_FASTA
+
+  CH_FASTA --> REFORMAT["REFORMAT_GENOME_HEADERS: renameheaders.py; output {assembly_prefix}.fasta + rename.tsv"]
+  REFORMAT --> RENAMED_FASTA["Renamed assembly FASTA"]
+
+  %% -------------------------
+  %% Repeat library branch
+  %% -------------------------
+  RENAMED_FASTA --> LIB_CHOICE{"repeat_library provided?"}
+
+  LIB_CHOICE -- "no / empty / null" --> BUILD_DB["REPEATMODELER_BUILDDATABASE: BuildDatabase -name {assembly_prefix} renamed.fasta"]
+  BUILD_DB --> DB_FILES["RepeatModeler database files"]
+  DB_FILES --> MODEL_REPEATS["REPEATMODELER_MODEL: RepeatModeler -database DB -threads cpus; optional -LTRStruct via params.include_ltr"]
+  MODEL_REPEATS --> MODELED_LIB["Repeat library from RepeatModeler: {assembly_prefix}.fa"]
+
+  LIB_CHOICE -- "yes" --> PROVIDED_LIB["Use provided repeat_library as ch_repeats; meta id = {assembly_prefix}_repeats"]
+
+  MODELED_LIB --> CH_REPEATS["ch_repeats"]
+  PROVIDED_LIB --> CH_REPEATS
+
+  %% -------------------------
+  %% Chunking branch
+  %% -------------------------
+  RENAMED_FASTA --> FXSPLIT["FXSPLIT: fxsplit --basepairs task.ext.chunks_or_100000 --no-mask -C --suffix {assembly_prefix}"]
+  FXSPLIT --> FASTX_CHUNKS["chunks/fx/*.f* or chunks/gz/*.gz"]
+  FASTX_CHUNKS --> CHUNK_META["flatMap chunks: meta.id = chunk basename; meta.header = basename with trailing _start-end... removed; meta.chunk = index"]
+  CHUNK_META --> CH_CHUNKS["ch_chunks"]
+
+  %% -------------------------
+  %% Parallel masking
+  %% -------------------------
+  CH_CHUNKS --> REPEATMASKER["REPEATMASKER per chunk: RepeatMasker -lib repeat_library -pa cpus -dir chunk_id --xsmall plus optional -engine params.engine"]
+  CH_REPEATS --> REPEATMASKER
+
+  REPEATMASKER --> MASKED_CHUNKS["Per-chunk *.masked FASTA"]
+  REPEATMASKER --> RM_OUT["Per-chunk *.out repeat annotations"]
+  REPEATMASKER --> RM_TBL["Per-chunk *.tbl"]
+  REPEATMASKER --> RM_GFF["Optional per-chunk *.gff"]
+
+  %% -------------------------
+  %% Masked genome reconstruction
+  %% -------------------------
+  MASKED_CHUNKS --> MAP_BY_HEADER["Map each masked chunk to meta.header"]
+  MAP_BY_HEADER --> GROUP_BY_CHR["groupTuple by chromosome/header"]
+  GROUP_BY_CHR --> CONCAT_FASTA["CONCAT_FASTA: group_mask_chunks.py --input seqs/ --output {chrom}.fasta"]
+  CONCAT_FASTA --> CHR_FASTAS["One reconstructed masked FASTA per chromosome/header"]
+
+  CHR_FASTAS --> COLLECT_FASTAS["collect chromosome FASTAs"]
+  COLLECT_FASTAS --> GAWK_JOIN["GAWK_JOIN_FASTA_FILES: gawk 1 input/* → {assembly_prefix}.masked.fasta"]
+  GAWK_JOIN --> JOINED_MASKED_FASTA["Joined soft-masked genome FASTA"]
+
+  JOINED_MASKED_FASTA --> FORMAT_CHOICE{"output_format?"}
+  FORMAT_CHOICE -- "'2bit'" --> FA_TO_TWO_BIT["FA_TO_TWO_BIT: faToTwoBit; adds -long only if FASTA > 4 GiB"]
+  FORMAT_CHOICE -- "'gz'" --> GZIP_FASTA_FINAL["GZIP_FASTA: gzip -c FASTA → FASTA.gz"]
+  FORMAT_CHOICE -- "anything else / 'fasta'" --> PUBLISH_FASTA["PUBLISH_FASTA: publish FASTA unchanged"]
+
+  FA_TO_TWO_BIT --> FINAL_2BIT["Final masked genome: *.2bit"]
+  GZIP_FASTA_FINAL --> FINAL_GZ["Final masked genome: *.fasta.gz"]
+  PUBLISH_FASTA --> FINAL_FASTA["Final masked genome: *.fasta"]
+
+  FINAL_2BIT --> EMIT_MASKED["emit: masked_genome"]
+  FINAL_GZ --> EMIT_MASKED
+  FINAL_FASTA --> EMIT_MASKED
+
+  %% -------------------------
+  %% Repeat annotation table side output
+  %% -------------------------
+  RM_OUT --> COLLECT_OUT["collect all RepeatMasker .out files"]
+  COLLECT_OUT --> MERGE_REPEATS["MERGE_REPEATMASKER_REPEATS: sort -V file list; merge_repeatmasker_repeats.sh → {assembly_prefix}.repeats.tsv"]
+  MERGE_REPEATS --> REPEATS_TSV["Published repeat table: *.repeats.tsv"]
+
+  %% -------------------------
+  %% Reporting / versions
+  %% -------------------------
+  TWOBIT_TO_FA -. versions .-> VERSIONS["versions channel"]
+  GUNZIP_FASTA -. versions .-> VERSIONS
+  REFORMAT -. versions .-> VERSIONS
+  BUILD_DB -. versions .-> VERSIONS
+  MODEL_REPEATS -. versions .-> VERSIONS
+  FXSPLIT -. versions .-> VERSIONS
+  REPEATMASKER -. versions .-> VERSIONS
+  CONCAT_FASTA -. versions .-> VERSIONS
+  GAWK_JOIN -. versions .-> VERSIONS
+  FA_TO_TWO_BIT -. versions .-> VERSIONS
+  GZIP_FASTA_FINAL -. versions .-> VERSIONS
+
+  VERSIONS --> EMIT_VERSIONS["emit: versions"]
