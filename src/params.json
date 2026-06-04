@@ -1,0 +1,12 @@
+{
+    "_comment": "Copy this file, fill in your genome paths, and pass it with: nextflow run main.nf -params-file my_params.json",
+    "genome": null,
+    "assembly_prefix": null,
+    "repeat_library": null,
+    "include_ltr": true,
+    "engine": "ncbi",
+    "chunks": 100000,
+    "output_format": "fasta",
+    "outdir": "./results",
+    "use_container": false,
+}
