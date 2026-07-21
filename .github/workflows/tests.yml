@@ -1,0 +1,54 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch: *
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run unit tests
+        run: python -m unittest discover -s src/tests -p 'test_*.py'
+
+  pipeline-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install Nextflow
+        env:
+          NXF_VER: "25.04.6"
+        run: |
+          curl -fsSL https://get.nextflow.io | bash
+          sudo mv nextflow /usr/local/bin/nextflow
+      - name: Build pipeline image
+        uses: docker/build-push-action@v6
+        with:
+          context: src
+          file: src/assets/image/Dockerfile
+          build-args: MODULE_VERSION=test
+          tags: softmask:test
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Run ambiguity integration test
+        env:
+          SOFTMASK_RUN_INTEGRATION: "1"
+          SOFTMASK_TEST_IMAGE: softmask:test
+        run: python src/tests/test_pipeline_ambiguity.py
