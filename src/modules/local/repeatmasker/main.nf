@@ -14,8 +14,8 @@ process REPEATMASKER {
     output:
     tuple val(meta), path("${prefix}.masked")   , emit: masked
     tuple val(meta), path("${prefix}.out")      , emit: out
-    tuple val(meta), path("${prefix}.tbl")      , emit: tbl
-    tuple val(meta), path("${prefix}.gff")      , emit: gff         , optional: true
+    tuple val(meta), path("${prefix}.tbl")      , emit: tbl, optional: true
+    tuple val(meta), path("${prefix}.gff")      , emit: gff, optional: true
     path "versions.yml"                         , emit: versions
 
     when:
@@ -39,10 +39,24 @@ process REPEATMASKER {
         ${args} \\
         ${out_fasta}
 
-    mv $prefix/${out_fasta}.masked  ${prefix}.masked
-    mv $prefix/${out_fasta}.out     ${prefix}.out
-    mv $prefix/${out_fasta}.tbl     ${prefix}.tbl
-    mv $prefix/${out_fasta}.out.gff ${prefix}.gff       || echo "GFF is not produced"
+    if [[ -f $prefix/${out_fasta}.masked ]]; then
+        mv $prefix/${out_fasta}.masked ${prefix}.masked
+    else
+        # RepeatMasker may omit .masked when it finds no repetitive sequence.
+        # Preserve the original chunk so downstream concatenation cannot alter
+        # the assembly coordinate system.
+        cp ${out_fasta} ${prefix}.masked
+    fi
+
+    mv $prefix/${out_fasta}.out ${prefix}.out
+
+    if [[ -f $prefix/${out_fasta}.tbl ]]; then
+        mv $prefix/${out_fasta}.tbl ${prefix}.tbl
+    fi
+
+    if [[ -f $prefix/${out_fasta}.out.gff ]]; then
+        mv $prefix/${out_fasta}.out.gff ${prefix}.gff
+    fi
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

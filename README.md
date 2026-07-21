@@ -51,6 +51,7 @@ CAGATGATGATGATGATGATgatgatgagctt
 > - **Inputs accepted**: `.fasta`, `.2bit`, or `.gz`.
 > - **Custom library**: Repeat library can be provided under `repeat_library` in `params.json`.
 > - **Container image**: We offer a pre-built container image for the whole pipeline as well as individual modules. By default the pipeline runs with [ghcr.io/hillerlab/softmask:latest](https://github.com/hillerlab/containers/pkgs/container/softmask). Additional images can be found at [containers](https://github.com/hillerlab/containers) and nextflow modules at [core](https://github.com/hillerlab/core).
+> - **Input format**: Input assemblies may contain Ns and other ambiguous bases. Ambiguous-only chunks are preserved unchanged and produce no repeat annotations. Sequence previously replaced by Ns cannot be recovered; users requiring a completely re-derived soft-masked assembly should provide the original unmasked genome where available.
 
 ---
 
@@ -77,6 +78,23 @@ nextflow run main.nf -params-file params.json -profile apptainer
 Smoke test:
 ```bash
 nextflow run main.nf -profile test,apptainer
+```
+
+## Tests
+
+Run the fast Python unit tests from the repository root:
+
+```bash
+python -m unittest discover -s src/tests -p 'test_*.py'
+```
+
+The end-to-end ambiguity test requires Nextflow 25.04.6 or newer and Docker.
+It builds the pipeline image as `softmask:test` when that image is not already
+available, then runs the pipeline once on a synthetic genome containing normal,
+all-N, mixed, and IUPAC-ambiguity chunks:
+
+```bash
+SOFTMASK_RUN_INTEGRATION=1 python src/tests/test_pipeline_ambiguity.py
 ```
 
 > [!NOTE]
@@ -122,4 +140,3 @@ results/
 |------|------|
 | `params.json` | Genome paths, alignment settings, checkpoints — per run |
 | `nextflow.config` | Compute resources, profiles, container, SLURM — rarely |
-
