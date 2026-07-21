@@ -22,6 +22,7 @@ process FXSPLIT {
 
     input:
     tuple val(meta), path(reads)
+    val chunk_size
 
     output:
     tuple val(meta), path("chunks/gz/*.gz")      , optional: true, emit: fastx_gz
@@ -34,7 +35,7 @@ process FXSPLIT {
     script:
     def args          = task.ext.args   ?: ''
     def prefix        = task.ext.prefix ?: "${meta.id}"
-    def chunks        = task.ext.chunks ?: 100000 // default is 100kb
+    def chunks        = chunk_size ?: task.ext.chunks ?: 100000 // default is 100kb
     def gzip          = reads.name.endsWith('.gz') ? true : false
     """
     fxsplit \\

@@ -48,6 +48,11 @@ $1 == "SW"    { id_offset += cur_max; cur_max = 0; next }
 $1 == "score" { next }
 NF == 0       { next }
 
+# Ambiguity-only and repeat-free inputs contain a diagnostic sentence instead
+# of the normal table. A real RepeatMasker result row always starts with its
+# numeric Smith-Waterman score.
+$1 !~ /^[0-9]+$/ { next }
+
 {
     # --- chrom + absolute coordinates ---------------------------------------
     q = $5
