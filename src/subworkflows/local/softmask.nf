@@ -101,10 +101,11 @@ workflow SOFTMASK {
 
         FXSPLIT(
             REFORMAT_GENOME_HEADERS.out.fasta,
+            chunks ?: 100000,
         )
         FXSPLIT.out.fastx
-            .flatMap { meta, chunks ->
-                def files = chunks instanceof List ? chunks : [chunks]
+            .flatMap { _meta, chunk_files ->
+                def files = chunk_files instanceof List ? chunk_files : [chunk_files]
 
                 files.withIndex().collect { it, idx ->
                     def name = it.baseName
