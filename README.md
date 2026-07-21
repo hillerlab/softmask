@@ -1,5 +1,9 @@
 <p align="center">
   <p align="center">
+    <img width=100 align="center" src="./src/assets/figures/logo.png" >
+  </p>
+
+  <p align="center">
     <img width=200 align="center" src="./src/assets/figures/hillerlab.png" >
   </p>
 
