@@ -16,7 +16,7 @@ SRC_ROOT = REPO_ROOT / "src"
 FIXTURES = SRC_ROOT / "assets" / "test_data"
 TEST_CONFIG = Path(__file__).with_name("pipeline_ambiguity.config")
 RUN_INTEGRATION = os.environ.get("SOFTMASK_RUN_INTEGRATION") == "1"
-DEFAULT_IMAGE = "softmask:test"
+DEFAULT_IMAGE = "ghcr.io/hillerlab/softmask:latest"
 
 
 def read_fasta(path: Path) -> dict[str, str]:
@@ -87,19 +87,7 @@ class PipelineAmbiguityIntegrationTests(unittest.TestCase):
         )
         if inspected.returncode == 0:
             return
-        self.run_checked(
-            [
-                "docker",
-                "build",
-                "--build-arg",
-                "MODULE_VERSION=test",
-                "-f",
-                str(SRC_ROOT / "assets" / "image" / "Dockerfile"),
-                "-t",
-                image,
-                str(SRC_ROOT),
-            ]
-        )
+        self.run_checked(["docker", "pull", image])
 
     def test_pipeline_preserves_ambiguity_and_coordinates(self) -> None:
         self.require_executable("nextflow")

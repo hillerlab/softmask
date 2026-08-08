@@ -107,9 +107,10 @@ python -m unittest discover -s src/tests -p 'test_*.py'
 ```
 
 The end-to-end ambiguity test requires Nextflow 25.04.6 or newer and Docker.
-It builds the pipeline image as `softmask:test` when that image is not already
-available, then runs the pipeline once on a synthetic genome containing normal,
-all-N, mixed, and IUPAC-ambiguity chunks:
+It pulls the pre-built pipeline image `ghcr.io/hillerlab/softmask:latest` (see
+the [containers](https://github.com/hillerlab/containers) repo), then runs the
+pipeline once on a synthetic genome containing normal, all-N, mixed, and
+IUPAC-ambiguity chunks:
 
 ```bash
 SOFTMASK_RUN_INTEGRATION=1 python src/tests/test_pipeline_ambiguity.py

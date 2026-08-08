@@ -37,19 +37,8 @@ jobs:
         run: |
           curl -fsSL https://get.nextflow.io | bash
           sudo mv nextflow /usr/local/bin/nextflow
-      - uses: docker/setup-buildx-action@v3
-      - name: Build pipeline image
-        uses: docker/build-push-action@v6
-        with:
-          context: src
-          file: src/assets/image/Dockerfile
-          build-args: MODULE_VERSION=test
-          tags: softmask:test
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
       - name: Run ambiguity integration test
         env:
           SOFTMASK_RUN_INTEGRATION: "1"
-          SOFTMASK_TEST_IMAGE: softmask:test
+          SOFTMASK_TEST_IMAGE: ghcr.io/hillerlab/softmask:latest
         run: python src/tests/test_pipeline_ambiguity.py
