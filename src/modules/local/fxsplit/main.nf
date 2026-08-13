@@ -17,7 +17,7 @@ process FXSPLIT {
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        '' :
+        'https://depot.galaxyproject.org/singularity/fxsplit:0.0.5--hb42e459_0' :
         'ghcr.io/alejandrogzi/fxsplit:latest' }"
 
     input:
